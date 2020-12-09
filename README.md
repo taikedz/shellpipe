@@ -21,7 +21,7 @@ print(mypipe)
 You can use strings directly in a pipe chain. Sub-quoted strings can be used.
 
 ```python
-sh() | 'git status' | 'grep -i "working tree clean"'
+print(  sh() | 'git status' | 'grep -i "working tree clean"'  )
 ```
 
 Get stderr as an exception
