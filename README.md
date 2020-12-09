@@ -6,96 +6,49 @@ Import the shellpipe notation, and write pipe-like syntax:
 
 ## Examples
 
-Provide commands as token lists or strings
+Provide commands as token lists, or as plain strings
 
-Get the result as a string from `run()`
+The pipe can be printed for its final stdout.
 
 ```python
 from shellpipe import sh, PipeError
 
 mypipe = sh(["echo", "-e", "a\\nb\\nc"]) | sh("tac")
-print(mypipe.run() )
+print(mypipe)
 ```
 
 
-Run directly (wrap the pipe in parentheses '( ... )' to avoid mis-piping to a None object)
-
-Sub-quoted strings can be used.
+You can use strings directly in a pipe chain. Sub-quoted strings can be used.
 
 ```python
-( sh('git status') | sh('grep -i "working tree clean"') ).print()
+sh() | 'git status' | 'grep -i "working tree clean"'
 ```
-
-Define commands, pipe them around.
-
-```python
-lsa = sh("ls -A")
-tac = sh("tac")
-sizes = sh("xargs du -sh")
-sorting = sh("sort -h")
-
-(lsa | tac).print()
-
-(lsa | sizes | sorting | tac).print()
-```
-
 
 Get stderr as an exception
 
 ```python
 try:
-    sh('ls non-existent-file').run()
+    sh('ls non-existent-file')
 
 except PipeError as e:
     print("Failed command: {}".format(e.command))
     print("Error code: {}".format(e.returncode))
 
-    print(e) # e, as a string, contains the output from stderr
+    print(e) # e, coerced to string, contains the output from stderr
 ```
 
 
 Get binary data output (don't judge this example... :-/)
 
 ```python
-stuff = sh("cat binary-file").run(string=False)
-
-# Not needed when piping
-#  String conversion only happens to final output
-(sh("cat binary") | sh("sha1sum")).print()
-```
-
-## Observations
-
-* The `sh(...) | sh(...)` build a pipe definition, but the specified commands are not actually run until `.run()` or `.print()` are called
-* Any pipe defined will be run as-new when `run()` is called.
-
-If you pipe two items together, the latter will retain a reference to the item prior to it. Note that you can pipe two commands together as a preparation without actually executing them, and confuse readers. Be responsible with this.
-
-```sh
-reverse = sh("tac")
-
-ls = sh("ls")
-
-# This firmly sets a relationship of "reverse" being
-#   always downstream from the defined "ls"
-ls | reverse
-
-# This will just print directory stuff
-ls.print()
-
-# But this will in fact reverse the ls output, since the relationship has been set
-reverse.print()
-
-# You need to orphan it (forget its parent),
-#   or re-pipe it to another parent.
-reverse.orphan()
+stuff = sh("cat binary-file").get_stdout()
 ```
 
 ## Caveats
 
 In true shell pipes, the processes are executed simultaneously, writing directly to file descriptors.
 
-In this implementation, each earlier command is run til termination, and its `subprocess.Popen.stdout` descriptor is passed to the next item in the pipe chain.
+In this implementation, each earlier command is run til termination, and its `subprocess.Popen.stdout` descriptor is passed to the next item in the pipe chain - the data may or may not be held in momory.
 
 This means that it is likely heavily inefficient if:
 
@@ -110,7 +63,7 @@ A multi-threaded version of this library would be needed to achieve the type of 
 
 This work was based off of [a comment by user `xtofl`](https://dev.to/xtofl/comment/14ihn) from my [dev.to blog](https://dev.to/taikedz), so props to them for the idea!
 
-It essentially makes use of the conflation of the shell `|` pipe notation, Python's `|` bitwise or comparator, and the fact that in Python, comparators' behaviours can be self-defined per-class.
+It essentially makes use of the conflation of the shell `|` pipe notation, Python's `|` bitwise `or` operator, and the fact that in Python, operators' behaviours can be self-defined per-class.
 
 ## License
 
