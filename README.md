@@ -53,7 +53,7 @@ except PipeError as e:
 Get binary data output (don't judge this example... :-/)
 
 ```python
-stuff = sh("cat binary-file", string=False).run()
+stuff = sh("cat binary-file").run(string=False)
 
 # Not needed when piping
 #  String conversion only happens to final output
