@@ -1,4 +1,5 @@
 import subprocess
+import sys
 import re
 import os
 
@@ -15,7 +16,7 @@ class PipeError(OSError):
     Use PipeError.returncode to find the return code of the failed command
     """
     def __init__(self, shellpipe, process):
-        self.command = shellpipe.command_list
+        self.command = shellpipe.command
         self.returncode = process.returncode
         super().__init__(str(process.stderr.read(), 'utf-8'))
 
@@ -33,6 +34,10 @@ def _check_iterable(item_list):
             raise TypeError("{} contains non-str item".format(item_list))
 
 
+def to_str(bytes_data):
+    return str(bytes_data, os.getenv("PYTHONIOENCODING", 'utf-8'))
+
+
 class ShellPipe:
     def __init__(self, command_list=None, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
         """ Provide a command token list to execute in a shell.
@@ -46,9 +51,6 @@ class ShellPipe:
         self.stdout = stdout
         self.stderr = stderr
         self.stdin = stdin
-
-        self.stdout_b = None
-        self.stderr_b = None
 
         if type(command_list) in (list,tuple):
             _check_iterable(command_list)
@@ -68,19 +70,19 @@ class ShellPipe:
 
 
     def __str__(self):
-        return str(self.stdout_b, os.getenv("PYTHONIOENCODING", 'utf-8'))
+        return to_str(self.process.stdout.read())
 
 
     def get_stderr(self):
         """ Get the raw bytes from the stderr channel.
         """
-        return self.stderr_b
+        return self.process.stderr
 
 
     def get_stdout(self):
         """ Get the raw bytes from the stdout channel.
         """
-        return self.stdout_b
+        return self.process.stdout
 
 
     def __or__(self, other):
@@ -104,7 +106,25 @@ class ShellPipe:
         if type(other) in (str,list,tuple):
             other = ShellPipe(command_list=other, stdin=our_out)
 
+        else:
+            raise TypeError("Shell pipe: pipe: RHS must be string, list, tuple, or ShellPipe, but found {}".format(other))
+
         return other
+
+
+    def __gt__(self, other):
+        our_out = None
+        if self.process:
+            our_out = self.process.stdout
+
+        if other == 1:
+            sys.stdout.write(to_str(our_out.read()))
+
+        elif other == 2:
+            sys.stderr.write(to_str(our_out.read()))
+
+        else:
+            raise TypeError("Shell pipe: write-out: RHS must be 1 to write to stdout or 2 to write to stderr")
 
 
     def __process(self):
@@ -114,7 +134,7 @@ class ShellPipe:
             return None
 
         our_process = subprocess.Popen(self.command, stdin=self.stdin, stdout=self.stdout, stderr=self.stderr)
-        self.stdout_b,self.stderr_b = our_process.communicate()
+        our_process.wait()
 
         if our_process.returncode > 0:
             raise PipeError(self, our_process)

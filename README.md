@@ -24,6 +24,16 @@ You can use strings directly in a pipe chain. Sub-quoted strings can be used.
 print(  sh() | 'git status' | 'grep -i "working tree clean"'  )
 ```
 
+or use a pseudo-redirect-out
+
+```python
+# Print shell stdout to python stdout
+sh() | 'docker ps' > 1
+
+# Print shell stdout to python stderr
+sh() | 'docker ps' > 2
+```
+
 Get stderr as an exception
 
 ```python
