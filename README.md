@@ -44,6 +44,14 @@ Get binary data output (don't judge this example... :-/) with `get_stdout()` and
 stuff = sh("cat binary-file").get_stdout()
 ```
 
+Ensure we see `stderr` on console - some interactive interfaces do this
+
+```python
+import sys
+
+rules = sh("sudo iptables -L", stderr=sys.stderr)
+```
+
 ## Caveats
 
 In true shell pipes, the processes are executed simultaneously, writing directly to file descriptors.

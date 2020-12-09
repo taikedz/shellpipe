@@ -34,7 +34,7 @@ def _check_iterable(item_list):
 
 
 class ShellPipe:
-    def __init__(self, command_list=None, stdin=None):
+    def __init__(self, command_list=None, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
         """ Provide a command token list to execute in a shell.
 
         @param command_list - the string tokens of a single command
@@ -43,9 +43,12 @@ class ShellPipe:
         """
         self.command = None
         self.process = None
-        self.stdout = None
-        self.stderr = None
+        self.stdout = stdout
+        self.stderr = stderr
         self.stdin = stdin
+
+        self.stdout_b = None
+        self.stderr_b = None
 
         if type(command_list) in (list,tuple):
             _check_iterable(command_list)
@@ -64,30 +67,20 @@ class ShellPipe:
             self.__process()
 
 
-    def __consume_channels(self):
-        self.stdout,self.stderr = self.process.communicate()
-
-
     def __str__(self):
-        if not self.stdout:
-            self.__consume_channels()
-        return str(self.stdout, os.getenv("PYTHONIOENCODING", 'utf-8'))
+        return str(self.stdout_b, os.getenv("PYTHONIOENCODING", 'utf-8'))
 
 
     def get_stderr(self):
         """ Get the raw bytes from the stderr channel.
         """
-        if not self.stderr:
-            self.__consume_channels()
-        return self.stderr
+        return self.stderr_b
 
 
     def get_stdout(self):
         """ Get the raw bytes from the stdout channel.
         """
-        if not self.stdout:
-            self.__consume_channels()
-        return self.stdout
+        return self.stdout_b
 
 
     def __or__(self, other):
@@ -120,8 +113,8 @@ class ShellPipe:
         if self.command is None:
             return None
 
-        our_process = subprocess.Popen(self.command, stdin=self.stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        our_process.wait()
+        our_process = subprocess.Popen(self.command, stdin=self.stdin, stdout=self.stdout, stderr=self.stderr)
+        self.stdout_b,self.stderr_b = our_process.communicate()
 
         if our_process.returncode > 0:
             raise PipeError(self, our_process)
