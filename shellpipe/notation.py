@@ -42,6 +42,10 @@ class ShellPipe:
         @param stdin - the stream from another shell. Internal.
         """
         self.command = None
+        self.process = None
+        self.stdout = None
+        self.stderr = None
+        self.stdin = stdin
 
         if type(command_list) in (list,tuple):
             _check_iterable(command_list)
@@ -55,11 +59,6 @@ class ShellPipe:
 
         else:
             raise TypeError("Cannot use {} as a command.".format(type()))
-
-        self.stdin = stdin
-        self.stdout = None
-        self.stderr = None
-        self.process = None
 
         if command_list:
             self.__process()
