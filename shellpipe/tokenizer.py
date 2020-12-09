@@ -8,6 +8,18 @@ class TokenError(Exception):
 
 
 def _take_token(command_string):
+    """ Given a command string, extract a single token.
+
+    This token reader is capable of detecting several shell idiosyncracies:
+
+    * non-quoted whitespace is discarded
+    * escape sequences with "\\" are recognised
+    * bunched up strings "like"'this' are detected as a single token 'likethis'
+
+    This tokenizer DOES NOT do globbing.
+
+    @return (token, remaining_command_string)
+    """
     current_token = []
     in_token = False
     escaping = False
@@ -73,6 +85,8 @@ def _take_token(command_string):
 
 
 def parse(command_string):
+    """ Given a command string, break it down into a list of command line tokens.
+    """
     final_tokens = []
     
     while command_string:

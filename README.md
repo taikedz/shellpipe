@@ -2,13 +2,13 @@
 
 This is a small project to allow using shell-like pipe notation inside python scripts.
 
-Import the shellpipe notation, and write pipe-like syntax:
+Import the shellpipe notation, and write pipe-like syntax directly with strings.
 
 ## Examples
 
-Provide commands as token lists, or as plain strings
+Provide commands as token lists or tuples, or as plain strings.
 
-The pipe can be printed for its final stdout.
+The pipe can simply be printed for its final stdout.
 
 ```python
 from shellpipe import sh, PipeError
@@ -38,7 +38,7 @@ except PipeError as e:
 ```
 
 
-Get binary data output (don't judge this example... :-/)
+Get binary data output (don't judge this example... :-/) with `get_stdout()` and `get_stderr()`
 
 ```python
 stuff = sh("cat binary-file").get_stdout()
