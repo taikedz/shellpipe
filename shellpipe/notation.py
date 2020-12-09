@@ -14,9 +14,12 @@ class PipeError(OSError):
     Its string representation is the stderr output of the failure.
 
     Use PipeError.command to see what command was run.
+
+    Use PipeError.returncode to find the return code of the failed command
     """
     def __init__(self, shellpipe, process):
         self.command = shellpipe.command_list
+        self.returncode = process.returncode
         super().__init__(str(process.stderr.read(), 'utf-8'))
 
 

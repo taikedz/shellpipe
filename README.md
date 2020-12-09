@@ -45,7 +45,11 @@ Get stderr as an exception
 ```python
 try:
     sh('ls non-existent-file').run()
+
 except PipeError as e:
+    print("Failed command: {}".format(e.command))
+    print("Error code: {}".format(e.returncode))
+
     print(e) # e, as a string, contains the output from stderr
 ```
 
