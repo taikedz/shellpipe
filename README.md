@@ -4,49 +4,61 @@ This is a small project to allow using shell-like pipe notation inside python sc
 
 Import the shellpipe notation, and write pipe-like syntax:
 
+## Examples
+
+Provide commands as token lists or strings
+
+Get the result as a string from `run()`
+
 ```python
 from shellpipe import sh, PipeError
 
-
-# Provide commands as token lists or strings
-# Get the result as a string from run()
-
 mypipe = sh(["echo", "-e", "a\\nb\\nc"]) | sh("tac")
 print(mypipe.run() )
+```
 
 
+Run directly (wrap the pipe in parentheses '( ... )' to avoid mis-piping to a None object)
 
-# Run directly (wrap the pipe in parentheses '( ... )' to avoid mis-piping to a None object)
-# Sub-quoted strings can be used.
+Sub-quoted strings can be used.
 
+```python
 ( sh('git status') | sh('grep -i "working tree clean"') ).print()
+```
+
+Define commands, pipe them around.
+
+```python
+lsa = sh("ls -A")
+tac = sh("tac")
+sizes = sh("xargs du -sh")
+sorting = sh("sort -h")
+
+(lsa | tac).print()
+
+(lsa | sizes | sorting | tac).print()
+```
 
 
+Get stderr as an exception
 
-# Get stderr as an exception
-
+```python
 try:
     sh('ls non-existent-file').run()
 except PipeError as e:
     print(e) # e, as a string, contains the output from stderr
+```
 
 
+Get binary data output (don't judge this example... :-/)
 
-# Get binary data output
-#  (don't judge this example... :-/)
+```python
 stuff = sh("cat binary-file", string=False).run()
 
 # Not needed when piping
 #  String conversion only happens to final output
 (sh("cat binary") | sh("sha1sum")).print()
-
 ```
-
-## Thanks
-
-This work was based off of [a comment by user `xtofl`](https://dev.to/xtofl/comment/14ihn) from my [dev.to blog](https://dev.to/taikedz), so props to them for the idea!
-
-It essentially makes use of the conflation of the shell `|` pipe notation, Python's `|` bitwise or comparator, and the fact that in Python, comparators' behaviours can be self-defined per-class.
 
 ## Observations
 
@@ -89,6 +101,12 @@ This means that it is likely heavily inefficient if:
 It is VERY unsuited for log monitoring, for example.
 
 A multi-threaded version of this library would be needed to achieve the type of parallelism desired, and I have not yet gotten round to this.
+
+## Thanks
+
+This work was based off of [a comment by user `xtofl`](https://dev.to/xtofl/comment/14ihn) from my [dev.to blog](https://dev.to/taikedz), so props to them for the idea!
+
+It essentially makes use of the conflation of the shell `|` pipe notation, Python's `|` bitwise or comparator, and the fact that in Python, comparators' behaviours can be self-defined per-class.
 
 ## License
 
