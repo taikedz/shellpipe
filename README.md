@@ -79,6 +79,18 @@ It is VERY unsuited for log monitoring, for example.
 
 A multi-threaded version of this library would be needed to achieve the type of parallelism desired, and I have not yet gotten round to this.
 
+## Local install
+
+There is a script to install shellpipe to your local environment without interfering with other package managers. I am not submitting this to PyPI as of yet.
+
+Simply run
+
+```sh
+bash local-install.sh && . "$HOME/.bashrc"
+```
+
+And you should be good to go.
+
 ## Thanks
 
 This work was based off of [a comment by user `xtofl`](https://dev.to/xtofl/comment/14ihn) from my [dev.to blog](https://dev.to/taikedz), so props to them for the idea!
