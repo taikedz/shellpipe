@@ -161,7 +161,6 @@ class ShellPipe:
 
 
     def __write_out(self, other, stream):
-        print("Writing to {}".format(other))
         if other == 1:
             sys.stdout.write(to_str(stream.read()))
 
