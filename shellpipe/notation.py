@@ -5,6 +5,13 @@ import os
 
 from shellpipe import tokenizer
 
+class ShellPipeError(Exception):
+    pass
+
+
+class CommandNotFoundError(FileNotFoundError):
+    pass
+
 
 class PipeError(OSError):
     """ Raised when a ShellPipe fails.
@@ -39,15 +46,23 @@ def to_str(bytes_data):
 
 
 class ShellPipe:
-    def __init__(self, command_list=None, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
+    def __init__(self, command_list=None, no_fail=False, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
         """ Provide a command token list to execute in a shell.
 
-        @param command_list - the string tokens of a single command
+        @param command_list - the string tokens of a single command as a list, or a command as a string
 
-        @param stdin - the stream from another shell. Internal.
+        @param no_fail - whether or not to throw an exception if the return code is non-zero
+
+        @param stdin - a file stream that will be fed to the comamnd's stdin
+
+        @param stdout - the output stream that will connect to the command's stdout
+
+        @param stderr - the output stream that will connect to the comamnd's stderr
         """
         self.command = None
         self.process = None
+        self.no_fail = no_fail
+
         self.stdout = stdout
         self.stderr = stderr
         self.stdin = stdin
@@ -113,15 +128,45 @@ class ShellPipe:
 
 
     def __gt__(self, other):
-        our_out = None
-        if self.process:
-            our_out = self.process.stdout
+        """You can redirect a ShellPipe's stdout to either sys.stdout or sys.stderr by using
 
+        sh("command") > 1
+        sh("command") > 2
+        """
+        if self.process:
+            stream = self.process.stdout
+            self.__write_out(other, stream)
+        else:
+            raise ShellPipeError("Redirect error: No process.")
+
+        return self
+
+
+    def __xor__(self, other):
+        """You can redirect a ShellPipe's stderr to either sys.stdout or sys.stderr by using
+
+        Note that if you are using multiple pipes, you MUST unify them in parentheses because '^' has precedence over '|'.
+
+        (sh("cmd1") | "cmd2") ^ 2
+        (sh("cmd1") | "cmd2") ^ 1
+        """
+        if self.process:
+            stream = self.process.stderr
+            self.__write_out(other, stream)
+        else:
+            raise ShellPipeError("Redirect error: No process.")
+
+        return self
+
+
+
+    def __write_out(self, other, stream):
+        print("Writing to {}".format(other))
         if other == 1:
-            sys.stdout.write(to_str(our_out.read()))
+            sys.stdout.write(to_str(stream.read()))
 
         elif other == 2:
-            sys.stderr.write(to_str(our_out.read()))
+            sys.stderr.write(to_str(stream.read()))
 
         else:
             raise TypeError("Shell pipe: write-out: RHS must be 1 to write to stdout or 2 to write to stderr")
@@ -133,10 +178,13 @@ class ShellPipe:
         if self.command is None:
             return None
 
-        our_process = subprocess.Popen(self.command, stdin=self.stdin, stdout=self.stdout, stderr=self.stderr)
-        our_process.wait()
+        try:
+            our_process = subprocess.Popen(self.command, stdin=self.stdin, stdout=self.stdout, stderr=self.stderr)
+            our_process.wait()
+        except FileNotFoundError as e:
+            raise CommandNotFoundError(e)
 
-        if our_process.returncode > 0:
+        if not self.no_fail and our_process.returncode > 0:
             raise PipeError(self, our_process)
 
         self.process = our_process

@@ -18,33 +18,33 @@ print(mypipe)
 ```
 
 
-You can use strings directly in a pipe chain. Sub-quoted strings can be used.
+You can use strings directly in a pipe chain. Sub-quoted strings can be used. A pseudo-redirect-out allows directly printing.
 
 ```python
-print(  sh() | 'git status' | 'grep -i "working tree clean"'  )
+sh() | 'git status' | 'grep -i "working tree clean"' > 1
 ```
 
-or use a pseudo-redirect-out
-
-```python
-# Print shell stdout to python stdout
-sh() | 'docker ps' > 1
-
-# Print shell stdout to python stderr
-sh() | 'docker ps' > 2
-```
-
-Get stderr as an exception
+Get stderr as an exception if a command in a chain returns non-zero:
 
 ```python
 try:
-    sh('ls non-existent-file')
+    sh('ls non-existent-folder/') | sh("tee file_list.txt")
 
 except PipeError as e:
     print("Failed command: {}".format(e.command))
     print("Error code: {}".format(e.returncode))
 
     print(e) # e, coerced to string, contains the output from stderr
+```
+
+Note that in the second command will not run, and the `file_list.txt` will not be created. You can specify to not throw an exception on failure, thus still running the rest of the commands in the pipe.
+
+```python
+
+# tee command will still run even if non-zero is returned
+
+sh( "du -h file1 file2 file3", no_fail=True ) | "tee sizes.txt"
+
 ```
 
 
@@ -68,7 +68,9 @@ In true shell pipes, the processes are executed simultaneously, writing directly
 
 In this implementation, each earlier command is run til termination, and its `subprocess.Popen.stdout` descriptor is passed to the next item in the pipe chain - the data may or may not be held in momory.
 
-This means that it is likely heavily inefficient if:
+If a command earlier in the chain returns a non-zero status, the other commands do not get called at all - though you can specify to not raise an exception on a specific job with the `no_fail` parameter.
+
+This also means that it is likely heavily inefficient if:
 
 * more than one step takes a long time to run
 * any step generates a large amount of output
