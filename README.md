@@ -48,10 +48,10 @@ sh( "du -h file1 file2 file3", no_fail=True ) | "tee sizes.txt"
 ```
 
 
-Get binary data output (don't judge this example... :-/) with `get_stdout()` and `get_stderr()`
+Get binary data stream with `get_stdout()` and `get_stderr()`
 
 ```python
-stuff = sh("cat binary-file").get_stdout()
+stuff = sh("ssh me@server cat binary-file").get_stdout()
 ```
 
 Ensure we see `stderr` on console - some interactive interfaces do this
