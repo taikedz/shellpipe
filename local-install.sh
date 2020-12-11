@@ -7,12 +7,21 @@ PYTHONPATH="${PYTHONPATH:-}"
 main() {
     local libdir="$HOME/.local/usr/lib/python3"
 
+    ensure_command rsync
+
     move_here
     ensure_target "$libdir"
 
     sync_files shellpipe "$libdir/shellpipe"
 
     ensure_bashrc_pythonpath "$libdir"
+}
+
+ensure_command() {
+    if ! which "$1" &>/dev/null ; then
+        echo "Could not find command '$1'"
+        exit 1
+    fi
 }
 
 move_here() {
@@ -26,7 +35,9 @@ ensure_target() {
 }
 
 ensure_bashrc_pythonpath() {
-    (echo "$PYTHONPATH" | grep "$1") && return
+    if echo "$PYTHONPATH" | grep "$1"; then
+        return
+    fi
 
     if [[ -n "$PYTHONPATH" ]]; then
         PYTHONPATH="$PYTHONPATH:"
