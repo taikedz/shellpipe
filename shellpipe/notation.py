@@ -29,19 +29,28 @@ class PipeError(OSError):
 
 
 def _check_type(thing, target):
-    """ Ensure a ShellPipe is being piped with another.
+    """ Ensure a ShellPipe is being piped with another
+
+    Raises consistent error message.
     """
-    if not type(thing) is target:
-        raise TypeError("Tried to pipe {} with a {}".format(target, type(thing)))
+    if not isinstance(thing, target):
+        raise TypeError("Needed a {} but got a {}".format(target, type(thing)))
 
 
 def _check_iterable(item_list):
+    """ Checks an interable's contents are all string items
+    """
     for item in item_list:
         if type(item) is not str:
             raise TypeError("{} contains non-str item".format(item_list))
 
 
 def to_str(bytes_data):
+    """ Convert bytes data to a string object, taking encoding settings into account.
+    """
+    if type(bytes_data) is str:
+        return bytes_data
+
     return str(bytes_data, os.getenv("PYTHONIOENCODING", 'utf-8'))
 
 
@@ -67,6 +76,8 @@ class ShellPipe:
         self.stderr = stderr
         self.stdin = stdin
 
+        execute = True
+
         if type(command_list) in (list,tuple):
             _check_iterable(command_list)
             self.command = command_list
@@ -77,10 +88,23 @@ class ShellPipe:
         elif command_list is None:
             pass
 
-        else:
-            raise TypeError("Cannot use {} as a command.".format(type()))
+        elif isinstance(command_list, ShellPipe):
+            self.command = command_list.command
+            self.process = command_list.process
+            self.no_fail = command_list.no_fail
 
-        if command_list:
+            self.stdin = command_list.stdin
+            self.stdout = command_list.stdout
+            self.stderr = command_list.stderr
+
+            # This has already been processed once by the incoming command.
+            # We do not-reprocess it ourselves
+            execute = False
+
+        else:
+            raise TypeError("Cannot use {} as a command.".format(type(command_list)))
+
+        if execute and command_list:
             self.__process()
 
 
@@ -102,9 +126,8 @@ class ShellPipe:
 
     def __or__(self, other):
         """ Magic sauce to redefine the Python bitwise OR operator as a pipe
-        """
 
-        """ In a bitwise OR operation, the __or__() method of the Left Hand Side object is
+        In a bitwise OR operation, the __or__() method of the Left Hand Side object is
         called with single argument the Right Hand Side object, and returns a result.
 
         If multiple bitwise OR operations are chained, the result of the comparison
@@ -118,11 +141,11 @@ class ShellPipe:
         if self.process:
             our_out = self.process.stdout
 
-        if type(other) in (str,list,tuple):
+        if type(other) in (str,list,tuple,ShellPipe):
             other = ShellPipe(command_list=other, stdin=our_out)
 
         else:
-            raise TypeError("Shell pipe: pipe: RHS must be string, list, tuple, or ShellPipe, but found {}".format(other))
+            raise TypeError("Shell pipe: pipe: RHS must be string, list, tuple, or ShellPipe, but found '{}' ({}).".format(other, type(other)))
 
         return other
 
@@ -142,13 +165,11 @@ class ShellPipe:
         return self
 
 
-    def __xor__(self, other):
-        """You can redirect a ShellPipe's stderr to either sys.stdout or sys.stderr by using
+    def __ge__(self, other):
+        """You can redirect a ShellPipe's stderr to either sys.stdout or sys.stderr by using the >= operator.
 
-        Note that if you are using multiple pipes, you MUST unify them in parentheses because '^' has precedence over '|'.
-
-        (sh("cmd1") | "cmd2") ^ 2
-        (sh("cmd1") | "cmd2") ^ 1
+        sh("cmd1") | "cmd2" >= 2
+        sh("cmd1") | "cmd2" >= 1
         """
         if self.process:
             stream = self.process.stderr
@@ -167,8 +188,12 @@ class ShellPipe:
         elif other == 2:
             sys.stderr.write(to_str(stream.read()))
 
+        elif type(other) is str and len(re.split(r"(\r\n|\r|\n)", other)) == 1 and other:
+            with open(other, 'w') as fh:
+                fh.write(to_str(stream.read()))
+
         else:
-            raise TypeError("Shell pipe: write-out: RHS must be 1 to write to stdout or 2 to write to stderr")
+            raise TypeError("Shell pipe: write-out: RHS must be 1 to write to stdout or 2 to write to stderr, or a single-line string to specify a filename to write to.")
 
 
     def __process(self):
