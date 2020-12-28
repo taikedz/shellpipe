@@ -1,87 +1,10 @@
 QUOTES = ('"', "'")
-ESCAPE = ('\\',)
+ESCAPE = '\\'
 WHITESPACE = (" ", "\t")
 
 
 class TokenError(Exception):
     pass
-
-
-def _take_token(command_string):
-    """ Given a command string, extract a single token.
-
-    This token reader is capable of detecting several shell idiosyncracies:
-
-    * non-quoted whitespace is discarded
-    * escape sequences with "\\" are recognised
-    * bunched up strings "like"'this' are detected as a single token 'likethis'
-
-    This tokenizer DOES NOT do globbing.
-
-    @return (token, remaining_command_string)
-    """
-    current_token = []
-    in_token = False
-    escaping = False
-    found = False
-
-    characters = []
-    characters.extend(command_string)
-    # This effectively splits per-character,
-    #   supporting unicode characters atomically
-    #   unless encoding is set otherwise
-
-    while not found and characters:
-        c = characters.pop(0)
-        if c in QUOTES:
-            if escaping:
-                current_token.append(c)
-                escaping = False
-            else:
-                if in_token:
-                    found = True
-                    in_token = False
-
-                else:
-                    in_token = True
-
-                if characters[0:1] in QUOTES:
-                    # Shell idiosyncracy:
-                    #   When quoted strings are back to back,
-                    #   they form a single string token!
-                    # Don't declare victory yet.
-                    found = False
-
-        elif c in WHITESPACE:
-            if escaping:
-                current_token.append(c)
-                escaping = False
-
-            elif in_token:
-                current_token.append(c)
-
-            else:
-                if current_token:
-                    found = True
-                # Else, ignore space
-
-        elif c in ESCAPE:
-            current_token.append(c)
-            # If we were already escaping, this escaper is escaped, come out
-            #   else, start escaping
-            escaping = not escaping
-
-        else:
-            current_token.append(c)
-            escaping = False
-
-    if in_token:
-        raise TokenError("Unterminated quoted string {}".format(characters))
-
-    elif escaping:
-        raise TokenError("Unterminated escape sequence")
-
-    return ''.join(current_token), ''.join(characters)
 
 
 def parse(command_string):
@@ -98,4 +21,82 @@ def parse(command_string):
         final_tokens.append(next_token)
 
     return final_tokens
+
+
+def _take_token(command_string):
+    """ Given a command string, extract a single token.
+
+    This token reader is capable of detecting several shell idiosyncracies:
+
+    * non-quoted whitespace is discarded
+    * escape sequences with "\\" are recognised
+    * bunched up strings "like"'this' are detected as a single token 'likethis'
+
+    This tokenizer DOES NOT do globbing NOR shell variable subtitution.
+
+    @return (token, remaining_command_string)
+    """
+
+    return _take_unquoted_token(command_string)
+
+
+def _take_unquoted_token(command_string):
+    current_token = []
+    escaping = False
+
+    characters = []
+    characters.extend(command_string)
+    # This effectively splits per-character,
+    #   supporting unicode characters atomically
+    #   unless encoding is set otherwise
+
+    while characters:
+        c = characters.pop(0)
+
+        if c is ESCAPE:
+            escaping = _process_escape_character(c, escaping, current_token)
+
+        elif c in QUOTES and not escaping:
+            current_token.extend( _take_quoted_token(characters, quote_mark=c) )
+
+        elif c in WHITESPACE and not escaping:
+            if current_token: # ... has content
+                break
+
+        else:
+            current_token.append(c)
+            escaping = False
+
+    if escaping:
+        raise TokenError("Unterminated escape sequence")
+
+    return ''.join(current_token), ''.join(characters)
+
+
+def _take_quoted_token(command_characters, quote_mark):
+    current_token = []
+    escaping = False
+
+    while command_characters:
+        c = command_characters.pop(0)
+
+        if c is ESCAPE and quote_mark == '"': # In shell, only double-quoted strings use escaping
+            escaping = _process_escape_character(c, escaping, current_token)
+
+        elif c is quote_mark:
+            if not escaping:
+                return ''.join(current_token)
+
+        else:
+            current_token.append(c)
+            escaping = False
+
+    raise TokenError("Unterminated quoted string {}".format(''.join(current_token)))
+
+
+def _process_escape_character(c, escaping, current_token):
+    if escaping: # An escaped escape character
+        current_token.append(c)
+
+    return not escaping # Escaper or escapee, either way, this state flips
 
