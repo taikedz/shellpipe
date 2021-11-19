@@ -4,6 +4,18 @@ This is a small project to allow using shell-like pipe notation inside python sc
 
 Import the shellpipe notation, and write pipe-like syntax directly with strings.
 
+But, DON'T USE THIS IN REAL LIFE. It's just a silly excercise 😅
+
+Use this instead:
+
+```python
+import subprocess
+
+assert subprocess.Popen("ls | grep py", shell=True).wait() == 0, "Command execution error"
+```
+
+Note that `shell=True` should be used *with great caution* if you are inserting user-sourced input.
+
 ## Examples
 
 Provide commands as token lists or tuples, or as plain strings.
